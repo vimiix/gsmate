@@ -17,8 +17,8 @@ _COMMIT := $(shell git describe --no-match --always --dirty)
 COMMIT  := $(if $(COMMIT),$(COMMIT),$(_COMMIT))
 BUILDDATE  := $(shell date '+%Y-%m-%dT%H:%M:%S')
 REPO    := gsmate
-LDFLAGS += -X "$(REPO)/src/version.Commit=$(COMMIT)"
-LDFLAGS += -X "$(REPO)/src/version.BuildDate=$(BUILDDATE)"
+LDFLAGS += -X "$(REPO)/pkg/version.Commit=$(COMMIT)"
+LDFLAGS += -X "$(REPO)/pkg/version.BuildDate=$(BUILDDATE)"
 FILES   := $$(find . -name "*.go")
 
 .PHONY: help

@@ -22,3 +22,6 @@ go.work
 go.work.sum
 
 bin/
+test/
+.enter.env
+

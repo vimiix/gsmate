@@ -12,23 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package utils
 
 import (
-	"fmt"
-	"gsmate/src/version"
+	"gsmate/internal/logger"
 
-	"github.com/urfave/cli/v2"
+	"golang.org/x/term"
 )
 
-// newVersionCmd creates a new sub command for displaying detailed version information.
-func newVersionCmd() *cli.Command {
-	cmd := newDefaultCmd()
-	cmd.Name = "version"
-	cmd.Usage = "Show detail version information"
-	cmd.Action = func(c *cli.Context) error {
-		fmt.Println(version.GetVersionDetail())
-		return nil
+var getWindowSize = term.GetSize
+
+func Chunks(vals []string) [][]string {
+	w, _, err := getWindowSize(0)
+	if err != nil {
+		logger.Debug("failed to get terminal size, set to 80 default: %s", err)
+		w = 80
 	}
-	return cmd
+
+	var max int
+	for _, v := range vals {
+		if len(v) > max {
+			max = len(v)
+		}
+	}
+
+	cols := w / (max + 2)
+	if cols == 0 {
+		cols = 1
+	}
+
+	var rs [][]string
+	for i := 0; i < len(vals); i += cols {
+		end := i + cols
+		if end >= len(vals) {
+			end = len(vals)
+		}
+		rs = append(rs, vals[i:end])
+	}
+	return rs
 }

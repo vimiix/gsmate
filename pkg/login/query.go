@@ -12,17 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package login
 
-import "time"
-
-type ConnectOptions struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Database string
-	DSN      string
-	AppName  string
-	Timeout  time.Duration
+type Query struct {
+	Text string
 }

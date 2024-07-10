@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package login
+package pgspecial
 
-import (
-	"context"
-	"gsmate/src/model"
-)
+import "strings"
 
-type Option struct {
-	ConnOpts *model.ConnectOptions
-	Prompt   string // Prompt format, Default: "\u@\h:\d> "
-}
-
-func Main(ctx context.Context, opt *Option) error {
-	return nil
+func EditorCommand(cmd string) string {
+	stripped := strings.TrimSpace(cmd)
+	for _, sought := range []string{"\\e", "\\ev", "\\ef"} {
+		if strings.HasPrefix(stripped, sought) {
+			return sought
+		}
+	}
+	if strings.HasSuffix(cmd, "\\e") {
+		return "\\e"
+	}
+	return ""
 }

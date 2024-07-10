@@ -16,17 +16,19 @@ package main
 
 import (
 	"fmt"
-	"gsmate/src/model"
-	"gsmate/src/version"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
+	"gsmate/cmd/subcmd"
+	"gsmate/internal/logger"
+	"gsmate/pkg/version"
+
 	"github.com/c-bata/go-prompt"
+	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 )
-
-var connOpts = &model.ConnectOptions{}
 
 var (
 	authors = []*cli.Author{
@@ -42,77 +44,22 @@ var (
 	}
 )
 
-var conntionFlags = []cli.Flag{
-	&cli.StringFlag{
-		Name:        "host",
-		Aliases:     []string{"h"},
-		EnvVars:     []string{"PGHOST"},
-		Destination: &connOpts.Host,
-		Usage:       "Database server host or socket directory",
+var interactiveCmds = []struct {
+	Names []string
+	Usage string
+}{
+	{
+		Names: []string{"help", "\\h"},
+		Usage: "show all available commands in interactive mode",
 	},
-	&cli.IntFlag{
-		Name:        "port",
-		Aliases:     []string{"p"},
-		EnvVars:     []string{"PGPORT"},
-		Value:       26000,
-		Destination: &connOpts.Port,
-		Usage:       "Database server port",
+	{
+		Names: []string{"exit", "\\q"},
+		Usage: "exit interactive mode",
 	},
-	&cli.StringFlag{
-		Name:        "username",
-		Aliases:     []string{"U"},
-		EnvVars:     []string{"PGUSER"},
-		Destination: &connOpts.Username,
-		Usage:       "Database username",
+	{
+		Names: []string{"shell", "\\!"},
+		Usage: `run shell command, such as: "\! ls -l"`,
 	},
-	&cli.StringFlag{
-		Name:        "password",
-		Aliases:     []string{"W"},
-		EnvVars:     []string{"PGPASSWORD"},
-		Destination: &connOpts.Password,
-		Usage:       "Connection password",
-	},
-	&cli.StringFlag{
-		Name:        "database",
-		Aliases:     []string{"d"},
-		EnvVars:     []string{"PGDATABASE"},
-		Value:       "postgres",
-		Destination: &connOpts.Database,
-		Usage:       "Database name to connect to",
-	},
-	&cli.StringFlag{
-		Name:        "appname",
-		EnvVars:     []string{"PGAPPNAME"},
-		Value:       "gsmate",
-		Destination: &connOpts.AppName,
-		Usage:       "Custom application name",
-	},
-	&cli.DurationFlag{
-		Name:        "timeout",
-		EnvVars:     []string{"PGCONNECT_TIMEOUT"},
-		Destination: &connOpts.Timeout,
-		Value:       time.Second * 10,
-		Usage:       "Connection timeout",
-	},
-}
-
-func getExecutor(cCtx *cli.Context) func(string) {
-	return func(in string) {
-		in = strings.TrimSpace(in)
-		args := strings.Fields(in)
-		switch args[0] {
-		case "exit", "\\q":
-			os.Exit(0)
-		default:
-			if _, exist := subCmds[args[0]]; !exist {
-				printError(fmt.Errorf("unknown command: %q", args[0]))
-				return
-			}
-			if err := cCtx.App.Run(append([]string{"gsmate"}, args...)); err != nil {
-				printError(err)
-			}
-		}
-	}
 }
 
 func main() {
@@ -140,9 +87,18 @@ func main() {
 			Usage:              "Print the version",
 			DisableDefaultText: true,
 		},
+		&cli.StringFlag{
+			Name:  "log-level",
+			Usage: "Log level (case-insensitive), support:\ndebug, info, warn, error, fatal",
+			Value: "info",
+		},
+		&cli.BoolFlag{
+			Name:               "silence",
+			Usage:              "Mute logger",
+			DisableDefaultText: true,
+		},
 	}
-	app.Flags = append(app.Flags, conntionFlags...)
-	app.Commands = subCmds.Values()
+	app.Commands = subcmd.GetSubCmds().Values()
 
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("help") {
@@ -152,19 +108,129 @@ func main() {
 			cli.ShowVersion(c)
 			return nil
 		}
-		completer := newCmdCompleter()
+		if c.Bool("silence") {
+			logger.MuteLogger()
+		} else {
+			logger.SetLogLevelByString(c.String("log-level"))
+		}
 		prompt.New(
-			getExecutor(c),
-			completer.Complete,
+			executor(c),
+			completer,
 			prompt.OptionTitle(c.App.Usage),
-			prompt.OptionLivePrefix(completer.PromptPrefix),
+			prompt.OptionLivePrefix(promptPrefix),
 			prompt.OptionInputTextColor(prompt.Yellow),
 			prompt.OptionShowCompletionAtStart(),
 		).Run()
 		return nil
 	}
 	if err := app.Run(os.Args); err != nil {
-		printError(err)
+		subcmd.PrintError(err)
 		os.Exit(1)
 	}
+}
+
+func executor(cCtx *cli.Context) func(string) {
+	return func(in string) {
+		in = strings.TrimSpace(in)
+		args := strings.Fields(in)
+		switch args[0] {
+		case "exit", "\\q":
+			color.Green("Bye!")
+			os.Exit(0)
+		case "help", "\\h":
+			fmt.Println("Gsmate Commands:")
+			for _, cmd := range cCtx.App.Commands {
+				subcmd.PrintCommand(cmd.Name, cmd.Usage)
+			}
+			fmt.Println("Type '<command> -?' for more information.")
+			fmt.Println()
+			fmt.Println("Interactive Commands:")
+			for _, c := range interactiveCmds {
+				subcmd.PrintCommand(strings.Join(c.Names, ", "), c.Usage)
+			}
+		case "shell", "\\!":
+			command := exec.Command("sh", "-c", strings.Join(args[1:], " "))
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			command.Stdin = os.Stdin
+			command.Env = os.Environ()
+			if err := command.Run(); err != nil {
+				subcmd.PrintError(err)
+			}
+		default:
+			_, exist := subcmd.GetSubCmds().Get(args[0])
+			if !exist {
+				subcmd.PrintError(fmt.Errorf("gsmate: '%s' is not a gsmate command", args[0]))
+				println("Type 'help' or '\\h' to see all available commands.")
+				return
+			}
+			if err := cCtx.App.Run(append([]string{"gsmate"}, args...)); err != nil {
+				subcmd.PrintError(err)
+			}
+		}
+	}
+}
+
+// completer implements the prompt.Completer interface.
+func completer(d prompt.Document) []prompt.Suggest {
+	preText := strings.TrimSpace(d.TextBeforeCursor())
+	if preText == "" {
+		return nil
+	}
+	if len(strings.Fields(preText)) < 2 {
+		return commandSuggestions(preText)
+	}
+
+	words := strings.Split(preText, " ")
+	subcmd, exist := subcmd.GetSubCmds().Get(words[0])
+	if !exist {
+		return nil
+	}
+
+	lastWord := d.GetWordBeforeCursor()
+	// If word before the cursor starts with "-", returns CLI flag options.
+	if strings.HasPrefix(lastWord, "-") {
+		return cmdOptionSuggestions(subcmd, lastWord)
+	}
+	return nil
+}
+
+func commandSuggestions(arg string) []prompt.Suggest {
+	var rs []prompt.Suggest
+	subcmd.GetSubCmds().Range(func(key string, cmd *cli.Command) {
+		if strings.HasPrefix(key, arg) {
+			rs = append(rs, prompt.Suggest{Text: key, Description: cmd.Usage})
+		}
+	})
+	for _, c := range interactiveCmds {
+		for _, name := range c.Names {
+			if strings.HasPrefix(name, arg) {
+				rs = append(rs, prompt.Suggest{Text: name, Description: c.Usage})
+			}
+		}
+
+	}
+	return rs
+}
+
+func cmdOptionSuggestions(cmd *cli.Command, arg string) []prompt.Suggest {
+	rs := make([]prompt.Suggest, 0)
+	unique := make(map[string]bool)
+	for _, flag := range cmd.Flags {
+		for _, name := range flag.Names() {
+			text := "-" + name
+			if len(name) > 1 {
+				text = "--" + name
+			}
+			if strings.HasPrefix(text, arg) && !unique[text] {
+				unique[text] = true
+				rs = append(rs, prompt.Suggest{Text: text})
+			}
+		}
+	}
+	return rs
+}
+
+func promptPrefix() (string, bool) {
+	return "gsmate> ", true
 }
