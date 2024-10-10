@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package login
+package client
 
-type Query struct {
-	Text string
-}
+const (
+	queryDBVersion = "SELECT SUBSTRING(version() FROM '\\(([^)]+)\\)') AS version"
+	queryServerPID = "SELECT pg_backend_pid()"
+)

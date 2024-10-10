@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pgspecial
+package errdef
 
-import "strings"
+type Error string
 
-func EditorCommand(cmd string) string {
-	stripped := strings.TrimSpace(cmd)
-	for _, sought := range []string{"\\e", "\\ev", "\\ef"} {
-		if strings.HasPrefix(stripped, sought) {
-			return sought
-		}
-	}
-	if strings.HasSuffix(cmd, "\\e") {
-		return "\\e"
-	}
-	return ""
+func (e Error) Error() string {
+	return string(e)
 }
+
+const (
+	ErrInvalidIdentifier        Error = "invalid identifier"
+	ErrInvalidQuotedString      Error = "invalid quoted string"
+	ErrUnterminatedQuotedString Error = "unterminated quoted string"
+	ErrWrongNumberOfArguments   Error = "wrong number of arguments"
+	ErrNotSupported             Error = "not supported"
+)

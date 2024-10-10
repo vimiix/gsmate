@@ -1,0 +1,9 @@
+{
+    "licenser.author": "Qian Yao",
+    "licenser.license": "AL2",
+    "licenser.projectName": "gsmate",
+    "licenser.disableAutoHeaderInsertion": false,
+    "gopls": {
+        "formatting.gofumpt": true,
+    }
+}

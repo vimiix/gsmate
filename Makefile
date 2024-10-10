@@ -36,7 +36,7 @@ tidy: ## run go mod tidy
 .PHONY: fmt
 fmt: ## format source code
 	@echo "format code ..."
-	@gofmt -s -l -w $(FILES) 2>&1
+	@gofumpt -l -w $(FILES) 2>&1
 
 .PHONY: build
 build: fmt tidy ## build binary
