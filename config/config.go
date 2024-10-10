@@ -41,7 +41,7 @@ var (
 	printConfig   map[string]string
 )
 
-const defaultPrompt = "$u@$h/$d> "
+const defaultPrompt = "$u@$h/$d"
 
 func Get() *Config {
 	return defaultConfig
@@ -84,42 +84,40 @@ func GetConfigMap() map[string]string {
 	}
 }
 
-func (c *Config) LivePrompt() func() (string, bool) {
-	return func() (string, bool) {
-		if c.Prompt == "" {
-			c.Prompt = defaultPrompt
-		}
-
-		rs := []rune(c.Prompt)
-		var buf []byte
-		end := len(rs)
-		for i := 0; i < len(rs); i++ {
-			if rs[i] != '$' {
-				buf = append(buf, string(rs[i])...)
-				continue
-			}
-
-			switch utils.Grab(rs, i+1, end) {
-			case '$':
-				buf = append(buf, '$')
-			case 'u':
-				buf = append(buf, []byte(c.Connection.Username)...)
-			case 'h':
-				buf = append(buf, []byte(c.Connection.Host)...)
-			case 'd':
-				buf = append(buf, []byte(c.Connection.DBName)...)
-			case 'p':
-				buf = append(buf, []byte(strconv.Itoa(c.Connection.Port))...)
-			case 'i':
-				pid := os.Getpid()
-				buf = append(buf, []byte(strconv.Itoa(pid))...)
-				// TODO support more
-			default:
-			}
-			i++
-		}
-		return string(buf), true
+func (c *Config) PromptPrefix() string {
+	if c.Prompt == "" {
+		c.Prompt = defaultPrompt
 	}
+
+	rs := []rune(c.Prompt)
+	var buf []byte
+	end := len(rs)
+	for i := 0; i < len(rs); i++ {
+		if rs[i] != '$' {
+			buf = append(buf, string(rs[i])...)
+			continue
+		}
+
+		switch utils.Grab(rs, i+1, end) {
+		case '$':
+			buf = append(buf, '$')
+		case 'u':
+			buf = append(buf, []byte(c.Connection.Username)...)
+		case 'h':
+			buf = append(buf, []byte(c.Connection.Host)...)
+		case 'd':
+			buf = append(buf, []byte(c.Connection.DBName)...)
+		case 'p':
+			buf = append(buf, []byte(strconv.Itoa(c.Connection.Port))...)
+		case 'i':
+			pid := os.Getpid()
+			buf = append(buf, []byte(strconv.Itoa(pid))...)
+			// TODO support more
+		default:
+		}
+		i++
+	}
+	return string(buf)
 }
 
 func Init() error {

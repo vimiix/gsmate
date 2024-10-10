@@ -38,13 +38,14 @@ import (
 var dummyExecutor = func(string) {}
 
 type DBClient struct {
-	cfg     *config.Config
-	db      *sql.DB
-	tx      *sql.Tx
-	version string
-	prompt  *prompt.Prompt
-	history *History
-	stmt    *Stmt
+	cfg          *config.Config
+	db           *sql.DB
+	tx           *sql.Tx
+	version      string
+	prompt       *prompt.Prompt
+	promptPrefix string
+	history      *History
+	stmt         *Stmt
 }
 
 func New(cfg *config.Config) (*DBClient, error) {
@@ -70,8 +71,7 @@ func New(cfg *config.Config) (*DBClient, error) {
 		prompt.OptionTitle("gsmate"),
 		prompt.OptionHistory(history.Records()),
 		prompt.OptionInputTextColor(prompt.Yellow),
-		// prompt.OptionShowCompletionAtStart(),
-		prompt.OptionLivePrefix(cfg.LivePrompt()),
+		prompt.OptionLivePrefix(c.LivePrefix()),
 	)
 
 	c.stmt = NewStmt(func() ([]rune, error) {
@@ -85,6 +85,19 @@ func New(cfg *config.Config) (*DBClient, error) {
 
 	err = c.initServerInfo()
 	return c, err
+}
+
+func (c *DBClient) LivePrefix() func() (string, bool) {
+	if c.promptPrefix == "" {
+		c.promptPrefix = c.cfg.PromptPrefix()
+	}
+	return func() (string, bool) {
+		status := " => "
+		if len(c.stmt.Buf) > 0 && !c.stmt.ready {
+			status = " -> "
+		}
+		return c.promptPrefix + status, true
+	}
 }
 
 func (c *DBClient) initServerInfo() error {
