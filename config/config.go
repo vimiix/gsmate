@@ -60,6 +60,7 @@ type Config struct {
 	SyntaxHighlight      bool   `ini:"syntax_highlight,omitempty"`
 	SyntaxHighlightStyle string `ini:"syntax_highlight_style,omitempty"`
 	OnErrorStop          bool   `ini:"on_error_stop,omitempty"`
+	UsePager             bool   `ini:"use_pager,omitempty"`
 
 	// auto detected fields
 	Pager                 string `ini:"-"`
@@ -134,10 +135,11 @@ func Init() error {
 	if s, err := syslocale.GetLocale(); err == nil {
 		locale = s
 	}
-	pager := "off"
-	if defaultConfig.Pager != "" {
-		pager = "on"
+	usePager := "on"
+	if !defaultConfig.UsePager {
+		usePager = "off"
 	}
+
 	printConfig = map[string]string{
 		"border":                   "1",
 		"columns":                  "0",
@@ -151,8 +153,7 @@ func Init() error {
 		"locale":                   locale,
 		"null":                     "",
 		"numericlocale":            "off",
-		"pager_min_lines":          "0",
-		"pager":                    pager,
+		"pager":                    usePager,
 		"pager_cmd":                defaultConfig.Pager,
 		"recordsep":                "\n",
 		"recordsep_zero":           "off",

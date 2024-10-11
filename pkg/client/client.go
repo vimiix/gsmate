@@ -92,9 +92,9 @@ func (c *DBClient) LivePrefix() func() (string, bool) {
 		c.promptPrefix = c.cfg.PromptPrefix()
 	}
 	return func() (string, bool) {
-		status := " => "
+		status := "=# "
 		if len(c.stmt.Buf) > 0 && !c.stmt.ready {
-			status = " -> "
+			status = "-# "
 		}
 		return c.promptPrefix + status, true
 	}
